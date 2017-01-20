@@ -1,6 +1,6 @@
 // See LICENSE for license details.
 
-name := "dsp-template"
+name := "tuner"
 
 organization := "edu.berkeley.cs"
 
@@ -34,7 +34,7 @@ libraryDependencies ++= Seq(
 
 lazy val TravisTest = config("travis") extend(Test)
 
-lazy val dsptemplate = (project in file(".")).
+lazy val tuner = (project in file(".")).
   configs(TravisTest).
   settings(inConfig(TravisTest)(Defaults.testTasks): _*)
 
@@ -42,6 +42,6 @@ testOptions in TravisTest += Tests.Argument(TestFrameworks.ScalaTest, "-l", "edu
 
 ghpages.settings
 
-git.remoteRepo := "git@github.com:ucb-art/dsp-template.git"
+git.remoteRepo := "git@github.com:ucb-art/tuner.git"
 
 site.includeScaladoc()

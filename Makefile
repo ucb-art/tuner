@@ -10,7 +10,7 @@ FIRRTL ?= java -Xmx2G -Xss8M -cp $(FIRRTL_JAR) firrtl.Driver
 
 CHISEL_ARGS ?= 
 build_dir ?= generated-src
-PROJECT ?= fir
+PROJECT ?= tuner
 MODEL ?= TestHarness
 CFG_PROJECT ?= $(PROJECT)
 CONFIG ?= DspConfig

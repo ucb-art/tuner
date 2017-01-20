@@ -22,7 +22,7 @@ import cde._
 import junctions._
 import uncore.tilelink._
 import uncore.coherence._
-import fir.Generator.params
+import tuner.Generator.params
 
 import dsptools._
 import scala.collection.mutable.Map
