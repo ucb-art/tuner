@@ -100,7 +100,7 @@ class DspConfig extends Config(
 case object TunerKey extends Field[(Parameters) => TunerConfig[DspReal]]
 
 trait HasTunerGenParameters[T <: Data] extends HasGenParameters[T, T] {
-   //def genTap: Option[T] = None
+   def genMult: Option[T] = None
 }
 
 case class TunerConfig[T<:Data:Real](val pipelineDepth: Int)(implicit val p: Parameters) extends HasTunerGenParameters[T] {
