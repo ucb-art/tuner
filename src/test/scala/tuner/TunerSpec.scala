@@ -1,5 +1,5 @@
 // See LICENSE for license details.
-package fir
+package tuner
 
 import diplomacy.{LazyModule, LazyModuleImp}
 import dsptools.Utilities._
@@ -35,8 +35,8 @@ import dsptools._
 
 object LocalTest extends Tag("edu.berkeley.tags.LocalTest")
 
-class FIRTester[T <: Data](c: FIRBlock[T])(implicit p: Parameters) extends DspBlockTester(c) {
-  val config = p(FIRKey)(p)
+class TunerTester[T <: Data](c: TunerBlock[T])(implicit p: Parameters) extends DspBlockTester(c) {
+  val config = p(TunerKey)(p)
   val gk = p(GenKey)
   val test_length = 10
   
@@ -77,8 +77,8 @@ class FIRTester[T <: Data](c: FIRBlock[T])(implicit p: Parameters) extends DspBl
   compareOutput(output, expected_output, 5e-2)
 }
 
-class FIRSpec extends FlatSpec with Matchers {
-  behavior of "FIR"
+class TunerSpec extends FlatSpec with Matchers {
+  behavior of "Tuner"
   val manager = new TesterOptionsManager {
     testerOptions = TesterOptions(backendName = "firrtl", testerSeed = 7L)
     interpreterOptions = InterpreterOptions(setVerbose = false, writeVCD = true)
@@ -91,7 +91,7 @@ class FIRSpec extends FlatSpec with Matchers {
     //    FixedPoint.fromDouble(x, binaryPoint = p(FractionalBits))
     //  }
     //} 
-    val dut = () => LazyModule(new LazyFIRBlock[DspReal]).module
-    chisel3.iotesters.Driver.execute(dut, manager) { c => new FIRTester(c) } should be (true)
+    val dut = () => LazyModule(new LazyTunerBlock[DspReal]).module
+    chisel3.iotesters.Driver.execute(dut, manager) { c => new TunerTester(c) } should be (true)
   }
 }

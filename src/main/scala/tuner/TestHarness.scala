@@ -1,4 +1,4 @@
-package fir
+package tuner
 
 import diplomacy.LazyModule
 import rocketchip._

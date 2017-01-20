@@ -1,4 +1,4 @@
-package fir
+package tuner
 
 import breeze.math.{Complex}
 import breeze.signal.{fourierTr}
@@ -31,7 +31,6 @@ trait HasIPXACTParameters {
   def getIPXACTParameters: Map[String, String]
 }
 
-case object NumTaps extends Field[Int]
 case object PipelineDepth extends Field[Int]
 case object TotalWidth extends Field[Int]
 case object FractionalBits extends Field[Int]
@@ -41,13 +40,11 @@ class DspConfig extends Config(
   (pname, site, here) => pname match {
     case BuildDSP => q: Parameters => 
       implicit val p = q
-      new LazyFIRBlock[DspReal]
-    case FIRKey => { (q: Parameters) => { 
+      new LazyTunerBlock[DspReal]
+    case TunerKey => q: Parameters =>  
       implicit val p = q
-      FIRConfig[DspReal](numberOfTaps = site(NumTaps), pipelineDepth = site(PipelineDepth))
-    }}
+      TunerConfig[DspReal](pipelineDepth = site(PipelineDepth))
 	  case NastiKey => NastiParameters(64, 32, 1)
-    case NumTaps => 8
     case TotalWidth => 30
     case FractionalBits => 24
     case PipelineDepth => 0
@@ -84,7 +81,7 @@ class DspConfig extends Config(
 
     // Conjure up some IPXACT synthsized parameters.
     val gk = params(GenKey)
-    parameterMap ++= List(("NumberOfTaps", params(NumTaps).toString), ("InputLanes", gk.lanesIn.toString),
+    parameterMap ++= List(("InputLanes", gk.lanesIn.toString),
       ("InputTotalBits", params(TotalWidth).toString), ("OutputLanes", gk.lanesOut.toString), ("OutputTotalBits", params(TotalWidth).toString),
       ("OutputPartialBitReversed", "1"), ("PipelineDepth", params(PipelineDepth).toString))
 
@@ -100,13 +97,13 @@ class DspConfig extends Config(
   }
 }
 
-case object FIRKey extends Field[(Parameters) => FIRConfig[DspReal]]
+case object TunerKey extends Field[(Parameters) => TunerConfig[DspReal]]
 
-trait HasFIRGenParameters[T <: Data] extends HasGenParameters[T, T] {
-   def genTap: Option[T] = None
+trait HasTunerGenParameters[T <: Data] extends HasGenParameters[T, T] {
+   //def genTap: Option[T] = None
 }
 
-case class FIRConfig[T<:Data:Real](val numberOfTaps: Int, val pipelineDepth: Int)(implicit val p: Parameters) extends HasFIRGenParameters[T] {
+case class TunerConfig[T<:Data:Real](val pipelineDepth: Int)(implicit val p: Parameters) extends HasTunerGenParameters[T] {
   // sanity checks
   require(lanesIn%lanesOut == 0, "Decimation amount must be an integer.")
   require(lanesOut <= lanesIn, "Cannot have more output lanes than input lanes.")

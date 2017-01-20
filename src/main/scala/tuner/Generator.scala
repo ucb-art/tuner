@@ -1,4 +1,4 @@
-package fir
+package tuner
 
 import util.GeneratorApp
 import org.accellera.spirit.v1685_2009.{File => SpiritFile, Parameters => SpiritParameters, _}
