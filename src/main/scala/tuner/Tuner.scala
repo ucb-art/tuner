@@ -31,12 +31,13 @@ class Tuner[T<:Data:Real]()(implicit val p: Parameters) extends Module with HasT
 
   // feed in zeros when invalid
   val in = Wire(Vec(lanesIn, genIn()))
-  when (io.in.valid) {
+  //when (io.in.valid) {
     in := io.in.bits
-  } .otherwise {
-    in := Wire(Vec(lanesIn, implicitly[Real[T]].zero))
-  }
+  //} .otherwise {
+  //  in := Wire(Vec(lanesIn, implicitly[Real[T]].zero))
+  //}
 
-  io.out.bits.zip(io.in.bits).zip(io.mult).foreach { case ((out, in), mult) => out := in * mult }
+  //io.out.bits.zip(in).zip(io.mult).foreach { case ((out, in), mult) => out := in * mult }
+  io.out.bits.zip(in).zip(io.mult).foreach { case ((out, in), mult) => out := in + mult }
 
 }

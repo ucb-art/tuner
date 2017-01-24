@@ -25,6 +25,7 @@ import chisel3.testers.BasicTester
 import org.scalatest._
 import scala.util.Random
 import scala.math._
+import testchipip._
 
 import cde._
 import junctions._
@@ -38,50 +39,51 @@ object LocalTest extends Tag("edu.berkeley.tags.LocalTest")
 class TunerTester[T <: Data](c: TunerBlock[T])(implicit p: Parameters) extends DspBlockTester(c) {
   val config = p(TunerKey)(p)
   val gk = p(GenKey)
-  val test_length = 10
+  val test_length = 2
   
   // define input datasets here
   val input = Seq.fill(test_length)(Seq.fill(gk.lanesIn)(Random.nextDouble*2-1))
-  val filter_coeffs = Array.fill(config.numberOfTaps)(Random.nextDouble*2-1)
+  val mult = Array.fill(gk.lanesIn)(Random.nextDouble*2-1)
 
   def streamIn = packInputStream(input, gk.genIn)
 
   // use Breeze FIR filter, but trim (it zero pads the input) and decimate output
-  val expected_output = filter(DenseVector(input.toArray.flatten), DenseVector(filter_coeffs)).toArray.drop(config.numberOfTaps-2).dropRight(config.numberOfTaps-2).grouped(gk.lanesIn/gk.lanesOut).map(_.head).toArray
+  //val expected_output = filter(DenseVector(input.toArray.flatten), DenseVector(filter_coeffs)).toArray.drop(config.numberOfTaps-2).dropRight(config.numberOfTaps-2).grouped(gk.lanesIn/gk.lanesOut).map(_.head).toArray
 
   // reset 5 cycles
   reset(5)
 
   pauseStream
-  // assumes coefficients are first addresses
-  //filter_coeffs.zipWithIndex.foreach { case(x, i) => axiWriteAs(i*8, x, gk.genIn) }
-  filter_coeffs.zipWithIndex.foreach { case(x, i) => axiWriteAs(addrmap(s"firCoeff$i"), x, gk.genIn) }
+  // TODO: can delete this once we update rocket-dsp-utils
+  val addrmap = SCRAddressMap(c.outer.scrbuilder.devName).get
+  // TODO: remove toInt from addrmap call once we update rocket-dsp-utils
+  mult.zipWithIndex.foreach { case(x, i) => axiWriteAs(addrmap(s"mult$i").toInt, x, config.genMult.getOrElse(gk.genOut[T])) }
   step(10)
   playStream
   step(test_length)
   val output = unpackOutputStream(gk.genOut[T], gk.lanesOut)
 
-  println("Input")
-  println(input.toArray.flatten.deep.mkString(","))
-  println("Coefficients")
-  println(filter_coeffs.deep.mkString(","))
+  println("Input:")
+  println(input.toArray.flatten.deep.mkString("\n"))
+  println("Tuner Coefficients")
+  println(mult.deep.mkString("\n"))
   println("Chisel Output")
-  println(output.toArray.deep.mkString(","))
-  println("Reference Output")
-  println(expected_output.deep.mkString(","))
+  println(output.toArray.deep.mkString("\n"))
+  //println("Reference Output")
+  //println(expected_output.deep.mkString(","))
 
   // as an example, though still need to convert from BigInt in bits to double
-  val tap0 = axiRead(0)
+  //val tap0 = axiRead(0)
 
   // check within 5%
-  compareOutput(output, expected_output, 5e-2)
+  //compareOutput(output, expected_output, 5e-2)
 }
 
 class TunerSpec extends FlatSpec with Matchers {
   behavior of "Tuner"
   val manager = new TesterOptionsManager {
     testerOptions = TesterOptions(backendName = "firrtl", testerSeed = 7L)
-    interpreterOptions = InterpreterOptions(setVerbose = false, writeVCD = true)
+    interpreterOptions = InterpreterOptions(setVerbose = true, writeVCD = true)
   }
 
   it should "work with DspBlockTester" in {

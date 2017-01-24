@@ -105,8 +105,7 @@ trait HasTunerGenParameters[T <: Data] extends HasGenParameters[T, T] {
 
 case class TunerConfig[T<:Data:Real](val pipelineDepth: Int)(implicit val p: Parameters) extends HasTunerGenParameters[T] {
   // sanity checks
-  require(lanesIn%lanesOut == 0, "Decimation amount must be an integer.")
-  require(lanesOut <= lanesIn, "Cannot have more output lanes than input lanes.")
+  require(lanesIn == lanesOut, "Tuner must have an equal number of input and output lanes.")
   require(pipelineDepth >= 0, "Must have positive pipelining")
 }
 
