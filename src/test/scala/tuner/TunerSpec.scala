@@ -38,14 +38,17 @@ object LocalTest extends Tag("edu.berkeley.tags.LocalTest")
 
 class TunerTester[T <: Data](c: TunerBlock[T])(implicit p: Parameters) extends DspBlockTester(c) {
   val config = p(TunerKey)(p)
-  val gk = p(GenKey)
+  val gk = p(GenKey(p(DspBlockId)))
   val test_length = 2
   
   // define input datasets here
-  val input = Seq.fill(test_length)(Seq.fill(gk.lanesIn)(Random.nextDouble*2-1))
+  //def input = Seq.fill(test_length)(Seq.fill(gk.lanesIn)(Random.nextDouble*2-1))
+  //def input = Seq.fill(test_length)(Seq.fill(gk.lanesIn)(2.718281828))
   val mult = Array.fill(gk.lanesIn)(Random.nextDouble*2-1)
 
-  def streamIn = packInputStream(input, gk.genIn)
+  //def streamIn = packInputStream(input, gk.genIn)
+  def input = Seq(BigInt(7), BigInt(6), BigInt(5), BigInt(3))
+  def streamIn = input
 
   // use Breeze FIR filter, but trim (it zero pads the input) and decimate output
   //val expected_output = filter(DenseVector(input.toArray.flatten), DenseVector(filter_coeffs)).toArray.drop(config.numberOfTaps-2).dropRight(config.numberOfTaps-2).grouped(gk.lanesIn/gk.lanesOut).map(_.head).toArray
@@ -54,17 +57,15 @@ class TunerTester[T <: Data](c: TunerBlock[T])(implicit p: Parameters) extends D
   reset(5)
 
   pauseStream
-  // TODO: can delete this once we update rocket-dsp-utils
-  val addrmap = SCRAddressMap(c.outer.scrbuilder.devName).get
-  // TODO: remove toInt from addrmap call once we update rocket-dsp-utils
-  mult.zipWithIndex.foreach { case(x, i) => axiWriteAs(addrmap(s"mult$i").toInt, x, config.genMult.getOrElse(gk.genOut[T])) }
+  mult.zipWithIndex.foreach { case(x, i) => axiWriteAs(addrmap(s"mult$i"), x, config.genMult.getOrElse(gk.genOut[T])) }
   step(10)
   playStream
   step(test_length)
   val output = unpackOutputStream(gk.genOut[T], gk.lanesOut)
 
   println("Input:")
-  println(input.toArray.flatten.deep.mkString("\n"))
+  //println(input.toArray.flatten.deep.mkString("\n"))
+  println(input.toArray.deep.mkString("\n"))
   println("Tuner Coefficients")
   println(mult.deep.mkString("\n"))
   println("Chisel Output")
@@ -83,7 +84,7 @@ class TunerSpec extends FlatSpec with Matchers {
   behavior of "Tuner"
   val manager = new TesterOptionsManager {
     testerOptions = TesterOptions(backendName = "firrtl", testerSeed = 7L)
-    interpreterOptions = InterpreterOptions(setVerbose = true, writeVCD = true)
+    interpreterOptions = InterpreterOptions(setVerbose = false, writeVCD = true)
   }
 
   it should "work with DspBlockTester" in {

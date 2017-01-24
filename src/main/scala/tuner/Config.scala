@@ -44,6 +44,7 @@ class DspConfig extends Config(
     case TunerKey => q: Parameters =>  
       implicit val p = q
       TunerConfig[DspReal](pipelineDepth = site(PipelineDepth))
+    case DspBlockId => "Tuner"
 	  case NastiKey => NastiParameters(64, 32, 1)
     case TotalWidth => 30
     case FractionalBits => 24
@@ -52,8 +53,8 @@ class DspConfig extends Config(
     case BaseAddr => 0
     case CacheBlockOffsetBits => 6
     case AmoAluOperandBits => 64
-    case TLId => "FIR"
-    case TLKey("FIR") =>
+    case TLId => "Tuner"
+    case TLKey("Tuner") =>
       TileLinkParameters(
         coherencePolicy = new MEICoherence(
           new NullRepresentation(2)),
@@ -65,14 +66,12 @@ class DspConfig extends Config(
         maxManagerXacts = 1,
         dataBeats = 8,
         dataBits = 64 * 8)
-    case DspBlockKey => DspBlockParameters(128, 128)
-    case GenKey => new GenParameters {
+    case DspBlockKey("Tuner") => DspBlockParameters(128, 128)
+    case GenKey("Tuner") => new GenParameters {
       //def getReal(): FixedPoint = FixedPoint(width=site(TotalWidth), binaryPoint=site(FractionalBits)) 
       def getReal(): DspReal = DspReal()//DspReal(0.0).cloneType
       def genIn [T <: Data] = getReal().asInstanceOf[T]
-      override def genOut[T <: Data] = getReal().asInstanceOf[T]
-      val lanesIn = 2
-      override val lanesOut = 2
+      def lanesIn = 2
     }
     case _ => throw new CDEMatchError
   }) with HasIPXACTParameters {
@@ -80,7 +79,7 @@ class DspConfig extends Config(
     val parameterMap = Map[String, String]()
 
     // Conjure up some IPXACT synthsized parameters.
-    val gk = params(GenKey)
+    val gk = params(GenKey(params(DspBlockId)))
     parameterMap ++= List(("InputLanes", gk.lanesIn.toString),
       ("InputTotalBits", params(TotalWidth).toString), ("OutputLanes", gk.lanesOut.toString), ("OutputTotalBits", params(TotalWidth).toString),
       ("OutputPartialBitReversed", "1"), ("PipelineDepth", params(PipelineDepth).toString))

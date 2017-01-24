@@ -12,7 +12,7 @@ class LazyTunerBlock[T <: Data : Real]()(implicit p: Parameters) extends LazyDsp
   def statuses = Seq()
 
   lazy val module = new TunerBlock[T](this)
-  val gk = p(GenKey)
+  val gk = p(GenKey(p(DspBlockId)))
 
   (0 until gk.lanesIn).map( i =>
     addControl(s"mult$i", 0.U)
@@ -20,12 +20,12 @@ class LazyTunerBlock[T <: Data : Real]()(implicit p: Parameters) extends LazyDsp
 }
 
 // TODO: can remove val from outer
-class TunerBlock[T <: Data : Real](val outer: LazyDspBlock)(implicit p: Parameters)
+class TunerBlock[T <: Data : Real](override val outer: LazyDspBlock)(implicit p: Parameters) 
   extends GenDspBlock[T, T](outer)(p) with HasTunerGenParameters[T] {
 
   val baseAddr = BigInt(0)
   val module = Module(new Tuner[T])
-  val gk = p(GenKey)
+  val gk = p(GenKey(p(DspBlockId)))
   val mio = module.io.asInstanceOf[TunerIO[T]]
 
   module.io.in <> unpackInput(lanesIn, genIn())
