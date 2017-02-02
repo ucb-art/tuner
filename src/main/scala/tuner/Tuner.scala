@@ -13,7 +13,6 @@ import cde.Parameters
 import internal.firrtl.{Width, BinaryPoint}
 
 class TunerIO[T<:Data:Real]()(implicit val p: Parameters) extends Bundle with HasTunerGenParameters[T] {
-  val config = p(TunerKey)(p)
   val in = Input(ValidWithSync(Vec(lanesIn, genIn())))
   val out = Output(ValidWithSync(Vec(lanesOut, genOut())))
 
@@ -22,10 +21,11 @@ class TunerIO[T<:Data:Real]()(implicit val p: Parameters) extends Bundle with Ha
 
 class Tuner[T<:Data:Real]()(implicit val p: Parameters) extends Module with HasTunerGenParameters[T] {
   val io = IO(new TunerIO[T])
-  val config = p(TunerKey)(p)
+  val config = p(TunerKey(p(DspBlockId)))
 
   // delay the data set signals
-  val latency = config.pipelineDepth
+  // val latency = config.pipelineDepth
+  val latency = 0
   io.out.sync := ShiftRegisterWithReset(io.in.sync, latency, 0.U)
   io.out.valid := ShiftRegisterWithReset(io.in.valid, latency, 0.U)
 
@@ -37,7 +37,7 @@ class Tuner[T<:Data:Real]()(implicit val p: Parameters) extends Module with HasT
   //  in := Wire(Vec(lanesIn, implicitly[Real[T]].zero))
   //}
 
-  //io.out.bits.zip(in).zip(io.mult).foreach { case ((out, in), mult) => out := in * mult }
-  io.out.bits.zip(in).zip(io.mult).foreach { case ((out, in), mult) => out := in + mult }
+  io.out.bits.zip(in).zip(io.mult).foreach { case ((out, in), mult) => out := in * mult }
+  //io.out.bits.zip(in).zip(io.mult).foreach { case ((out, in), mult) => out := in + mult }
 
 }

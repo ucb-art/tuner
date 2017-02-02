@@ -36,19 +36,19 @@ import dsptools._
 
 object LocalTest extends Tag("edu.berkeley.tags.LocalTest")
 
-class TunerTester[T <: Data](c: TunerBlock[T])(implicit p: Parameters) extends DspBlockTester(c) {
-  val config = p(TunerKey)(p)
+class TunerTester[T <: Data](c: TunerBlock[T])(implicit val p: Parameters) extends DspBlockTester(c) with HasTunerGenParameters[T] {
+  val config = p(TunerKey(p(DspBlockId)))
   val gk = p(GenKey(p(DspBlockId)))
   val test_length = 2
   
   // define input datasets here
   //def input = Seq.fill(test_length)(Seq.fill(gk.lanesIn)(Random.nextDouble*2-1))
-  //def input = Seq.fill(test_length)(Seq.fill(gk.lanesIn)(2.718281828))
+  val input = Seq.fill(test_length)(Seq.fill(gk.lanesIn)(2.718281828))
   val mult = Array.fill(gk.lanesIn)(Random.nextDouble*2-1)
 
   //def streamIn = packInputStream(input, gk.genIn)
-  def input = Seq(BigInt(7), BigInt(6), BigInt(5), BigInt(3))
-  def streamIn = input
+  //def input = Seq(BigInt(7), BigInt(6), BigInt(5), BigInt(3))
+  def streamIn = packInputStream(input, gk.genIn)
 
   // use Breeze FIR filter, but trim (it zero pads the input) and decimate output
   //val expected_output = filter(DenseVector(input.toArray.flatten), DenseVector(filter_coeffs)).toArray.drop(config.numberOfTaps-2).dropRight(config.numberOfTaps-2).grouped(gk.lanesIn/gk.lanesOut).map(_.head).toArray
@@ -57,11 +57,11 @@ class TunerTester[T <: Data](c: TunerBlock[T])(implicit p: Parameters) extends D
   reset(5)
 
   pauseStream
-  mult.zipWithIndex.foreach { case(x, i) => axiWriteAs(addrmap(s"mult$i"), x, config.genMult.getOrElse(gk.genOut[T])) }
+  mult.zipWithIndex.foreach { case(x, i) => axiWriteAs(addrmap(s"mult$i"), x, genMult.getOrElse(gk.genOut[T])) }
   step(10)
   playStream
   step(test_length)
-  val output = unpackOutputStream(gk.genOut[T], gk.lanesOut)
+  //val output = unpackOutputStream(gk.genOut[T], gk.lanesOut)
 
   println("Input:")
   //println(input.toArray.flatten.deep.mkString("\n"))
@@ -69,7 +69,7 @@ class TunerTester[T <: Data](c: TunerBlock[T])(implicit p: Parameters) extends D
   println("Tuner Coefficients")
   println(mult.deep.mkString("\n"))
   println("Chisel Output")
-  println(output.toArray.deep.mkString("\n"))
+  //println(output.toArray.deep.mkString("\n"))
   //println("Reference Output")
   //println(expected_output.deep.mkString(","))
 
@@ -88,13 +88,17 @@ class TunerSpec extends FlatSpec with Matchers {
   }
 
   it should "work with DspBlockTester" in {
-    implicit val p: Parameters = Parameters.root(new DspConfig().toInstance)
+    implicit val p: Parameters = Parameters.root(TunerConfigBuilder.standalone(
+    "tunerjames",
+    TunerConfig(10), 
+    {() => DspReal()})
+    .toInstance)
     //implicit object FixedTypeclass extends dsptools.numbers.FixedPointReal { 
     //  override def fromDouble(x: Double): FixedPoint = {
     //    FixedPoint.fromDouble(x, binaryPoint = p(FractionalBits))
     //  }
     //} 
     val dut = () => LazyModule(new LazyTunerBlock[DspReal]).module
-    chisel3.iotesters.Driver.execute(dut, manager) { c => new TunerTester(c) } should be (true)
+    dsptools.Driver.execute(dut, manager) { c => new TunerTester(c) } should be (true)
   }
 }

@@ -20,7 +20,7 @@ class LazyTunerBlock[T <: Data : Real]()(implicit p: Parameters) extends LazyDsp
 }
 
 // TODO: can remove val from outer
-class TunerBlock[T <: Data : Real](override val outer: LazyDspBlock)(implicit p: Parameters) 
+class TunerBlock[T <: Data : Real](outer: LazyDspBlock)(implicit p: Parameters) 
   extends GenDspBlock[T, T](outer)(p) with HasTunerGenParameters[T] {
 
   val baseAddr = BigInt(0)
