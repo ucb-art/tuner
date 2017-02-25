@@ -1,110 +1,125 @@
 package tuner
 
-import breeze.math.{Complex}
-import breeze.signal.{fourierTr}
-import breeze.linalg._
+import cde._
 import chisel3._
-import chisel3.util._
-import chisel3.iotesters._
-import firrtl_interpreter.InterpreterOptions
-import dsptools.numbers.{DspReal, SIntOrder, SIntRing}
-import dsptools.{DspContext, DspTester, Grow}
-import org.scalatest.{FlatSpec, Matchers}
+import chisel3.experimental._
+import craft._
+import dsptools._
+import dsptools.numbers.{Field=>_,_}
 import dsptools.numbers.implicits._
-import dsptools.numbers.{DspComplex, Real}
-import scala.util.Random
-import scala.math._
-import org.scalatest.Tag
+import dspblocks._
 import dspjunctions._
 import dspblocks._
-
-import cde._
-import junctions._
+import _root_.junctions._
 import uncore.tilelink._
 import uncore.coherence._
-import tuner.Generator.params
-
-import dsptools._
 import scala.collection.mutable.Map
 
-trait HasIPXACTParameters {
-  def getIPXACTParameters: Map[String, String]
+object TunerConfigBuilder {
+  def apply[T <: Data : Ring](
+    id: String, tunerConfig: TunerConfig, genIn: () => T, genOut: Option[() => T] = None): Config = new Config(
+      (pname, site, here) => pname match {
+        case TunerKey(_id) if _id == id => tunerConfig
+        case IPXactParameters(_id) if _id == id => {
+          val parameterMap = Map[String, String]()
+      
+          // Conjure up some IPXACT synthsized parameters.
+          val gk = site(GenKey(id))
+          val inputLanes = gk.lanesIn
+          val outputLanes = gk.lanesOut
+          val inputTotalBits = gk.genIn.getWidth * inputLanes
+          val outputTotalBits = gk.genOut.getWidth * outputLanes
+          parameterMap ++= List(
+            ("InputLanes", inputLanes.toString),
+            ("InputTotalBits", inputTotalBits.toString), 
+            ("OutputLanes", outputLanes.toString), 
+            ("OutputTotalBits", outputTotalBits.toString),
+            ("OutputPartialBitReversed", "1")
+          )
+      
+          // add fractional bits if it's fixed point
+          genIn() match {
+            case fp: FixedPoint =>
+              val fractionalBits = fp.binaryPoint
+              parameterMap ++= List(
+                ("InputFractionalBits", fractionalBits.get.toString)
+              )
+            case c: DspComplex[T] =>
+              c.underlyingType() match {
+                case "fixed" =>
+                  val fractionalBits = c.real.asInstanceOf[FixedPoint].binaryPoint
+                  parameterMap ++= List(
+                    ("InputFractionalBits", fractionalBits.get.toString)
+                  )
+                case _ => 
+              }
+            case _ =>
+          }
+          genOut.getOrElse(genIn)() match {
+            case fp: FixedPoint =>
+              val fractionalBits = fp.binaryPoint
+              parameterMap ++= List(
+                ("OutputFractionalBits", fractionalBits.get.toString)
+              )
+            case c: DspComplex[T] =>
+              c.underlyingType() match {
+                case "fixed" =>
+                  val fractionalBits = c.real.asInstanceOf[FixedPoint].binaryPoint
+                  parameterMap ++= List(
+                    ("OutputFractionalBits", fractionalBits.get.toString)
+                  )
+                case _ => 
+              }
+            case _ =>
+          }
+
+          // Coefficients
+          //parameterMap ++= pfbConfig.window.zipWithIndex.map{case (coeff, index) => (s"FilterCoefficients$index", coeff.toString)}
+          //parameterMap ++= List(("FilterScale", "1"))
+      
+          // tech stuff, TODO
+          parameterMap ++= List(("ClockRate", "100"), ("Technology", "TSMC16nm"))
+      
+          parameterMap
+        }
+        case _ => throw new CDEMatchError
+      }) ++
+  ConfigBuilder.genParams(id, tunerConfig.lanes, genIn, genOutFunc = genOut)
+  def standalone[T <: Data : Ring](id: String, tunerConfig: TunerConfig, genIn: () => T, genOut: Option[() => T] = None): Config =
+    apply(id, tunerConfig, genIn, genOut) ++
+    ConfigBuilder.buildDSP(id, {implicit p: Parameters => new TunerBlock[T]})
 }
 
-case object PipelineDepth extends Field[Int]
-case object TotalWidth extends Field[Int]
-case object FractionalBits extends Field[Int]
+// default floating point and fixed point configurations
+class DefaultStandaloneRealTunerConfig extends Config(TunerConfigBuilder.standalone("tuner", TunerConfig(), () => DspReal()))
+class DefaultStandaloneFixedPointTunerConfig extends Config(TunerConfigBuilder.standalone("tuner", TunerConfig(), () => FixedPoint(32.W, 16.BP)))
+class DefaultStandaloneComplexTunerConfig extends Config(TunerConfigBuilder.standalone("tuner", TunerConfig(), () => DspComplex(FixedPoint(32.W, 16.BP), FixedPoint(32.W, 16.BP))))
 
-// create a new DSP Configuration
-class DspConfig extends Config(
-  (pname, site, here) => pname match {
-    case BuildDSP => q: Parameters => 
-      implicit val p = q
-      new LazyTunerBlock[DspReal]
-    case TunerKey => q: Parameters =>  
-      implicit val p = q
-      TunerConfig[DspReal](pipelineDepth = site(PipelineDepth))
-    case DspBlockId => "Tuner"
-	  case NastiKey => NastiParameters(64, 32, 1)
-    case TotalWidth => 30
-    case FractionalBits => 24
-    case PipelineDepth => 0
-    case PAddrBits => 32
-    case BaseAddr => 0
-    case CacheBlockOffsetBits => 6
-    case AmoAluOperandBits => 64
-    case TLId => "Tuner"
-    case TLKey("Tuner") =>
-      TileLinkParameters(
-        coherencePolicy = new MEICoherence(
-          new NullRepresentation(2)),
-        nManagers = 1,
-        nCachingClients = 0,
-        nCachelessClients = 1,
-        maxClientXacts = 4,
-        maxClientsPerPort = 1,
-        maxManagerXacts = 1,
-        dataBeats = 8,
-        dataBits = 64 * 8)
-    case DspBlockKey("Tuner") => DspBlockParameters(128, 128)
-    case GenKey("Tuner") => new GenParameters {
-      //def getReal(): FixedPoint = FixedPoint(width=site(TotalWidth), binaryPoint=site(FractionalBits)) 
-      def getReal(): DspReal = DspReal()//DspReal(0.0).cloneType
-      def genIn [T <: Data] = getReal().asInstanceOf[T]
-      def lanesIn = 2
-    }
-    case _ => throw new CDEMatchError
-  }) with HasIPXACTParameters {
-  def getIPXACTParameters: Map[String, String] = {
-    val parameterMap = Map[String, String]()
+// provides a sample custom configuration
+class CustomStandaloneTunerConfig extends Config(TunerConfigBuilder.standalone(
+  "tuner", 
+  TunerConfig(
+    pipelineDepth = 4,
+    lanes = 16,
+    tunerDepth = 32),
+  genIn = () => DspComplex(FixedPoint(18.W, 16.BP), FixedPoint(18.W, 16.BP)),
+  genOut = Some(() => DspComplex(FixedPoint(20.W, 16.BP), FixedPoint(20.W, 16.BP)))
+))
 
-    // Conjure up some IPXACT synthsized parameters.
-    val gk = params(GenKey(params(DspBlockId)))
-    parameterMap ++= List(("InputLanes", gk.lanesIn.toString),
-      ("InputTotalBits", params(TotalWidth).toString), ("OutputLanes", gk.lanesOut.toString), ("OutputTotalBits", params(TotalWidth).toString),
-      ("OutputPartialBitReversed", "1"), ("PipelineDepth", params(PipelineDepth).toString))
+case class TunerKey(id: String) extends Field[TunerConfig]
 
-    // add fractional bits if it's fixed point
-    // TODO: check if it's fixed point or not
-    parameterMap ++= List(("InputFractionalBits", params(FractionalBits).toString), 
-      ("OutputFractionalBits", params(FractionalBits).toString))
-
-    // tech stuff, TODO
-    parameterMap ++= List(("ClockRate", "100"), ("Technology", "TSMC16nm"))
-
-    parameterMap
-  }
+trait HasTunerParameters[T <: Data] extends HasGenParameters[T, T] {
+   def genCoeff: Option[T] = None
 }
 
-case object TunerKey extends Field[(Parameters) => TunerConfig[DspReal]]
-
-trait HasTunerGenParameters[T <: Data] extends HasGenParameters[T, T] {
-   def genMult: Option[T] = None
-}
-
-case class TunerConfig[T<:Data:Real](val pipelineDepth: Int)(implicit val p: Parameters) extends HasTunerGenParameters[T] {
+case class TunerConfig(
+  val pipelineDepth: Int = 0, // pipeline registers are always added at the end
+  val lanes: Int = 8, // number of parallel input and output lanes
+  val tunerDepth: Int = 16 // how deep the tuner memory is, this times lanes gives total tuner depth
+) {
   // sanity checks
-  require(lanesIn == lanesOut, "Tuner must have an equal number of input and output lanes.")
   require(pipelineDepth >= 0, "Must have positive pipelining")
+  require(tunerDepth >= 0, "Must have positive tuner depth")
+  require(lanes > 0, "Must have some input lanes")
 }
 

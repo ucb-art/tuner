@@ -37,18 +37,18 @@ import dsptools._
 object LocalTest extends Tag("edu.berkeley.tags.LocalTest")
 
 class TunerTester[T <: Data](c: TunerBlock[T])(implicit p: Parameters) extends DspBlockTester(c) {
-  val config = p(TunerKey)(p)
-  val gk = p(GenKey(p(DspBlockId)))
-  val test_length = 2
+  def config = p(TunerKey)(p)
+  def gk = p(GenKey(p(DspBlockId)))
+  def test_length = 2
   
   // define input datasets here
   //def input = Seq.fill(test_length)(Seq.fill(gk.lanesIn)(Random.nextDouble*2-1))
-  //def input = Seq.fill(test_length)(Seq.fill(gk.lanesIn)(2.718281828))
   val mult = Array.fill(gk.lanesIn)(Random.nextDouble*2-1)
 
-  //def streamIn = packInputStream(input, gk.genIn)
-  def input = Seq(BigInt(7), BigInt(6), BigInt(5), BigInt(3))
-  def streamIn = input
+  //def input = Seq.fill(test_length)(Seq.fill(gk.lanesIn)(2.718281828))
+  def input = Seq(Seq(2.2, 2.3), Seq(1.4, 5.9))
+  def streamIn = packInputStream(input, gk.genIn)
+  //def input = Seq(BigInt(7), BigInt(6), BigInt(5), BigInt(3))
 
   // use Breeze FIR filter, but trim (it zero pads the input) and decimate output
   //val expected_output = filter(DenseVector(input.toArray.flatten), DenseVector(filter_coeffs)).toArray.drop(config.numberOfTaps-2).dropRight(config.numberOfTaps-2).grouped(gk.lanesIn/gk.lanesOut).map(_.head).toArray
@@ -61,7 +61,7 @@ class TunerTester[T <: Data](c: TunerBlock[T])(implicit p: Parameters) extends D
   step(10)
   playStream
   step(test_length)
-  val output = unpackOutputStream(gk.genOut[T], gk.lanesOut)
+  def output = unpackOutputStream(gk.genOut[T], gk.lanesOut)
 
   println("Input:")
   //println(input.toArray.flatten.deep.mkString("\n"))
