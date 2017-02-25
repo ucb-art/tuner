@@ -122,4 +122,3 @@ case class TunerConfig(
   require(tunerDepth >= 0, "Must have positive tuner depth")
   require(lanes > 0, "Must have some input lanes")
 }
-

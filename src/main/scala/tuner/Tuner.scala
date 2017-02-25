@@ -28,7 +28,8 @@ class Tuner[T<:Data:Ring]()(implicit val p: Parameters) extends Module with HasT
   val config = p(TunerKey(p(DspBlockId)))
 
   // delay the data set signals
-  val latency = config.pipelineDepth
+  // val latency = config.pipelineDepth
+  val latency = 0
   io.out.sync := ShiftRegisterWithReset(io.in.sync, latency, 0.U)
   io.out.valid := ShiftRegisterWithReset(io.in.valid, latency, 0.U)
 
