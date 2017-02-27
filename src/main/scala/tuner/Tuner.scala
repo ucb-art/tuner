@@ -72,6 +72,7 @@ class Tuner[T<:Data:Ring, V<:Data:Real]()(implicit val p: Parameters, ev: spire.
   }
 
   // multiply, add pipeline registers at output
+  // lots of weirdness to get handle arbitrary input type, mostly
   //io.out.bits.zip(in).zip(coeffs).foreach { case ((out, in), coeff) => out := ShiftRegister(config.pipelineDepth, coeff :* in) }
   io.out.bits.zip(in).zip(coeffs).foreach { case ((out: DspComplex[V], in: T), coeff: DspComplex[V]) => {
     //val ops = new spire.syntax.ModuleOps(coeff)
