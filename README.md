@@ -1,88 +1,100 @@
-DSP Project Template [![Build Status](https://travis-ci.org/ucb-art/dsp-template.svg?branch=work)](https://travis-ci.org/ucb-art/dsp-template)
+Tuner [![Build Status](https://travis-ci.org/ucb-art/tuner.svg?branch=master)](https://travis-ci.org/ucb-art/tuner)
 =======================
 
-You've done the chisel [tutorials](https://github.com/ucb-bar/chisel-tutorial.git), and now you 
-are ready to start your own dsp project.  The following procedure should get you started
-with a clean running [dsptools](https://github.com/ucb-bar/dsptools.git) project.
+# Overview
 
-## Make your own DSP project
-### How to get started
-The first thing you want to do is clone this repo into a directory of your own.  I'd recommend creating a dsp projects directory somewhere
-```sh
-mkdir ~/DspProjects
-cd ~/DspProjects
+This project contains a digital tuner.
 
-git clone https://github.com/ucb-art/dsp-template.git MyChiselProject
-cd MyChiselProject
-```
+# Usage
 
-The next step is to build and install all the dependencies. Run the following from MyChiselProject/
+## GitHub Pages
+
+See [here](https://ucb-art.github.io/tuner/latest/api/) for the GitHub pages scaladoc.
+
+## Setup
+
+Clone the repository and update the depenedencies:
 
 ```
+git clone git@github.com:ucb-art/tuner.git
 git submodule update --init
 cd dsp-framework
 ./update.bash
-cd ../
-make libs
+cd ..
 ```
 
-It should build and install the needed dependencies without error.
-If you do not have verilator installed, you should [follow instructions here](https://github.com/ucb-bar/chisel3) under the 'Install Verilator' heading.
+See the [https://github.com/ucb-art/dsp-framework/blob/master/README.md](dsp-framework README) for more details on this infrastructure.
+Build the dependencies by typing `make libs`.
 
-### Make your project into a fresh git repo
-There may be more elegant way to do it, but the following works for me. **Note:** this project comes with a magnificent 339 line (at this writing) .gitignore file.
- You may want to edit that first in case we missed something, whack away at it, or start it from scratch.
-```sh
-rm -rf .git
-git init
-git add .gitignore *
-git commit -m 'Starting MyDspProject'
-```
-Connecting this up to github or some other remote host is an exercise left to the reader.
-### Did it work?
-You should now have a project based on Chisel3 that can be run.  **Note:** With a nod to cargo cult thinking, some believe 
-it is best to execute the following sbt before opening up this directory in your IDE. I have no formal proof of this assertion.
-So go for it, at the command line in the project root.
-```sh
-make test
-```
-You should see a whole bunch of output that ends with the following lines
-```
-inChannelName: 00018143.in
-outChannelName: 00018143.out
-cmdChannelName: 00018143.cmd
-STARTING test_run_dir/fir.FIRWrapperSpec347336104/VFIRWrapper
-SEED 1481676096621
-Enabling waves..
-Exit Code: 0
-RAN 40 CYCLES PASSED
-[info] FIRWrapperSpec:
-[info] FIRWrapper
-[info] - should work with DspBlockTester
-[info] ScalaCheck
-[info] Passed: Total 0, Failed 0, Errors 0, Passed 0
-[info] ScalaTest
-[info] Run completed in 8 seconds, 799 milliseconds.
-[info] Total number of tests run: 1
-[info] Suites: completed 1, aborted 0
-[info] Tests: succeeded 1, failed 0, canceled 0, ignored 0, pending 0
-[info] All tests passed.
-[info] Passed: Total 1, Failed 0, Errors 0, Passed 1
-[success] Total time: 26 s, completed Dec 13, 2016 4:41:41 PM
-```
-If you see the above then...
-### It worked!
-You are ready to go. We have a few recommended practices and things to do.
-* Use packages and following conventions for [structure](http://www.scala-sbt.org/0.13/docs/Directories.html) and [naming](http://docs.scala-lang.org/style/naming-conventions.html)
-* Package names should be clearly reflected in the testing hierarchy
-* Build tests for all your work.
- * This template includes a dependency on the Chisel3 IOTesters, this is a reasonable starting point for most tests
- * You can remove this dependency in the build.sbt file if necessary
-* Change the name of your project in the build.sbt
-* Change your README.md
+## Building
 
-## Development/Bug Fixes
-This is the release version of dsp-template. If you have bug fixes or
-changes you would like to see incorporated in this repo, please checkout
-the master branch and submit pull requests against it.
+The build flow generates FIRRTL, then generates Verilog, then runs the TSMC memory compiler to generate memories.
+Memories are black boxes in the Verilog by default.
+IP-Xact is created with the FIRRTL.
+The build targets for each of these are firrtl, verilog, and mems, respectively.
+Depedencies are handled automatically, so to build the Verilog and memories, just type `make mems`.
+Results are placed in a `generated-src` directory.
+
+## Testing
+
+Chisel testing hasn't been implemented yet.
+
+## Configuring
+
+In `src/main/scala` there is a `Config.scala` file.
+A few default configurations are defined for you, called DefaultStandaloneXTunerConfig, where X is either Real, FixedPoint, or Complex.
+Real and FixedPoint produce floating point and fixed point input versions, respectively, with the outputs and coefficients as complex numbers with underlying types of floating point and fixed point, respectively.
+These generate a small tuner with default parameters.
+To run them, type `make verilog CONFIG=DefaultStandaloneXTuneConfig`, replacing X with Real, FixedPoint, or Complex.
+The default make target is the default FixedPoint configuration.
+
+The suggested way to create a custom configuration is to modify CustomStandaloneTunerConfig, which defines values for all possible parameters.
+Then run `make verilog CONFIG=CustomStandaloneTunerConfig` to generate the Verilog.
+
+# Specifications
+
+## Interfaces
+
+The Tuner uses the [https://github.com/ucb-art/rocket-dsp-utils/blob/master/doc/stream.md](DSP streaming interface) (a subset of AXI4-Stream) on both the data input and data output.
+There are nominally no status or control registers, so no SCR file exists.
+
+## Signaling
+
+### Bits
+
+It is expected that the bits inputs contain time-series data time-multiplexed on the inputs, such that on the first cycle are values x[0], x[1], …, x[p-1], then the next cycle contains x[p], x[p+1], … and this continues indefinitely. 
+The outputs are in same time order.
+Inputs are either complex or real, but the output and coefficients are always complex.
+
+### Valid
+
+The output valid is just the input valid delayed by the pipeline depth.
+
+### Sync
+
+The output sync is just the input sync delayed by the pipeline depth.
+
+## Implementation
+
+The tuner implements a programmable mixer.
+The inputs can be either complex or real.
+If the inputs are real, they are mapped to the real part of complex values before being multiplied by the mixer coefficients.
+The coefficients and outputs are always complex.
+
+There are loosely two main configuration options for the mixer.
+The options are called "SimpleFixed" or "Fixed".
+In the SimpleFixed scenario, input lanes are multiplied by programmable phase values defined in the SCRFile.  
+The SCRFile provides one phase value for each lane. 
+Phase values are always signed and complex.
+
+In the Fixed scenario, the phase values are restricted to being one of 2\*pi/N phases where N is defined by the parameter mixerTableSize.
+The mixerTableSize must be an integer multiple of the number of lanes.
+The SCRFile allows control of input k, also called FixedTunerMultiplier, which will specify to use phase 0, 2\*pi\*k/N, 2\*2\*pi\*k/N, 3\*2\*pi\*k/N.
+This sequence will inherently rollover and repeat after at most N phases and thus each input lane will always use the same value once k is chosen.
+The values of sin and cos may be multiplied by a small constant slightly less than 1 (e.g. .999) to prevent rounding or truncation from causing bit growth.
+See Figure below.
+Note that some lanes may be able to use any phase while other lanes will be restricted to a subset of the phases.
+For example, lane 0 will always use a constant of approximately 1 +i\*0.
+
+![SimpleFixed mixer table](/doc/simplemixer.png?raw=true)
 

@@ -4,15 +4,16 @@ import cde.Parameters
 import chisel3._
 import dsptools._
 import dsptools.numbers._
+import dsptools.numbers.implicits._
 import dspjunctions._
 import dspblocks._
 import ipxact._
 
-class TunerBlock[T <: Data : Ring]()(implicit p: Parameters) extends DspBlock()(p) {
+class TunerBlock[T <: Data:Ring, V <: Data:Real]()(implicit p: Parameters, ev: spire.algebra.Module[DspComplex[V],T]) extends DspBlock()(p) {
   def controls = Seq()
   def statuses = Seq()
 
-  lazy val module = new TunerBlockModule[T](this)
+  lazy val module = new TunerBlockModule[T, V](this)
   
   //val config = p(TunerKey(p(DspBlockId)))
   //(0 until config.numberOfTaps).map( i =>
@@ -22,9 +23,9 @@ class TunerBlock[T <: Data : Ring]()(implicit p: Parameters) extends DspBlock()(
 
 }
 
-class TunerBlockModule[T <: Data : Ring](outer: DspBlock)(implicit p: Parameters)
-  extends GenDspBlockModule[T, T](outer)(p) with HasTunerParameters[T] {
-  val module = Module(new Tuner)
+class TunerBlockModule[T <: Data:Ring, V <: Data:Real](outer: DspBlock)(implicit p: Parameters, ev: spire.algebra.Module[DspComplex[V],T])
+  extends GenDspBlockModule[T, DspComplex[V]](outer)(p) with HasTunerGenParameters[T, DspComplex[V]] {
+  val module = Module(new Tuner[T, V])
   val config = p(TunerKey(p(DspBlockId)))
   
   module.io.in <> unpackInput(lanesIn, genIn())
