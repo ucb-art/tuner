@@ -90,8 +90,6 @@ class Tuner[T<:Data:Ring, V<:Data:Real]()(implicit val p: Parameters, ev: spire.
     //val x: DspComplex[V] = DspComplex[V].timesl(coeff, in) //coeff :* in
     //val x: DspComplex[V] = ops :* in
     val x: DspComplex[V] = ev.timesr(coeff, in)
-    //out := ShiftRegister(x, config.pipelineDepth) 
-    out.real := x.real
-    out.imag := x.imag
+    out := ShiftRegister(x, config.pipelineDepth)
   }}
 }
