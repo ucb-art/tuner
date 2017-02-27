@@ -45,7 +45,7 @@ In `src/main/scala` there is a `Config.scala` file.
 A few default configurations are defined for you, called DefaultStandaloneXTunerConfig, where X is either Real, FixedPoint, or Complex.
 Real and FixedPoint produce floating point and fixed point input versions, respectively, with the outputs and coefficients as complex numbers with underlying types of floating point and fixed point, respectively.
 These generate a small tuner with default parameters.
-To run them, type `make verilog CONFIG=DefaultStandaloneXTuneConfig`, replacing X with Real, FixedPoint, or Complex.
+To run them, type `make verilog CONFIG=DefaultStandaloneXTunerConfig`, replacing X with Real, FixedPoint, or Complex.
 The default make target is the default FixedPoint configuration.
 
 The suggested way to create a custom configuration is to modify CustomStandaloneTunerConfig, which defines values for all possible parameters.
