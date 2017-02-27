@@ -161,7 +161,14 @@ object TunerConfigBuilder {
 
 trait ComplexRealModule[T <: Data] extends spire.algebra.Module[DspComplex[T], T] {
   implicit def ev: Real[T]
-  def timesl(r: T, v: DspComplex[T]): DspComplex[T] = DspComplex.wire(v.real * r, v.imaginary * r)
+  def timesl(r: T, v: DspComplex[T]): DspComplex[T] = {
+    val x = v.real * r
+    val y = v.imag * r
+    val cmplx = Wire(DspComplex(x, y))
+    cmplx.real := x
+    cmplx.imag := y
+    cmplx
+  }
 
   // Members declared in spire.algebra.AdditiveGroup
   def negate(x: dsptools.numbers.DspComplex[T]): dsptools.numbers.DspComplex[T] = ???
@@ -180,7 +187,14 @@ trait ComplexRealModule[T <: Data] extends spire.algebra.Module[DspComplex[T], T
 trait ComplexComplexModule[T <: Data] extends spire.algebra.Module[DspComplex[T], DspComplex[T]] {
   implicit def ev: Real[T]
   // [stevo]: not sure why * isn't being imported
-  def timesl(r: DspComplex[T], v: DspComplex[T]): DspComplex[T] = DspComplex.wire(v.real * r.real - v.imaginary * r.imaginary, v.real * r.imaginary + v.imaginary * r.real)
+  def timesl(r: DspComplex[T], v: DspComplex[T]): DspComplex[T] = {
+    val real = v.real * r.real - v.imag * r.imag
+    val imag = v.real * r.imag + v.imag * r.real
+    val cmplx = Wire(DspComplex(real, imag))
+    cmplx.real := real
+    cmplx.imag := imag
+    cmplx
+  }
 
   // Members declared in spire.algebra.AdditiveGroup
   def negate(x: dsptools.numbers.DspComplex[T]): dsptools.numbers.DspComplex[T] = ???

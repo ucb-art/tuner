@@ -23,7 +23,7 @@ class TunerIO[T<:Data:Ring, V<:Data:Real]()(implicit val p: Parameters) extends 
 
   // only used if phaseGenerator = SimpleFixed
   val fixed_tuner_phase_re = Input(Vec(config.lanes, genCoeff().asInstanceOf[DspComplex[V]].real))
-  val fixed_tuner_phase_im = Input(Vec(config.lanes, genCoeff().asInstanceOf[DspComplex[V]].imaginary))
+  val fixed_tuner_phase_im = Input(Vec(config.lanes, genCoeff().asInstanceOf[DspComplex[V]].imag))
 
   // only used if phaseGenerator = Fixed
   val fixed_tuner_multiplier = Input(UInt(config.kBits.W))
@@ -60,12 +60,23 @@ class Tuner[T<:Data:Ring, V<:Data:Real]()(implicit val p: Parameters, ev: spire.
   val coeffs = List.fill(config.lanes)(Wire(genCoeff()))
   if (config.phaseGenerator == "SimpleFixed") {
     // just grab from SCR File, one coeff per lane
-    io.fixed_tuner_phase_re.zip(io.fixed_tuner_phase_im).zip(coeffs).foreach{ case((re, im), coeff) => coeff := DspComplex.wire(re, im) }
+    io.fixed_tuner_phase_re.zip(coeffs).foreach{ case(re, coeff) => coeff.real := re }
+    io.fixed_tuner_phase_im.zip(coeffs).foreach{ case(im, coeff) => coeff.imag := im }
   } else { // Fixed
     // create table of coefficients, which are cos(2*pi*k/N)+i*sin(2*pi*k/N)
     val phases = (0 until config.mixerTableSize).map(x => Array(cos(2*Pi/config.mixerTableSize*x),sin(2*Pi/config.mixerTableSize*x)))
-    val pml = new RealPML(genCoeff().asInstanceOf[DspComplex[V]].real)
-    val tables = List.fill(config.lanes)(Vec(phases.map(x => DspComplex.wire(pml.double2TFixedWidth(x(0)), pml.double2TFixedWidth(x(1))))))
+    val genCoeffReal = genCoeff().asInstanceOf[DspComplex[V]].real
+    val genCoeffImag = genCoeff().asInstanceOf[DspComplex[V]].imag
+    val tables = List.fill(config.lanes)(Vec(phases.map(x => {
+      val real = Wire(genCoeffReal.cloneType)
+      val imag = Wire(genCoeffImag.cloneType)
+      real := genCoeffReal.fromDouble(x(0))
+      imag := genCoeffImag.fromDouble(x(1))
+      val coeff = Wire(DspComplex(genCoeffReal, genCoeffImag))
+      coeff.real := real
+      coeff.imag := imag
+      coeff
+    })))
     tables.zipWithIndex.zip(coeffs).foreach{ case ((table, laneID), coeff) => {
       coeff := table(io.fixed_tuner_multiplier*laneID.U)
     }}
@@ -79,6 +90,8 @@ class Tuner[T<:Data:Ring, V<:Data:Real]()(implicit val p: Parameters, ev: spire.
     //val x: DspComplex[V] = DspComplex[V].timesl(coeff, in) //coeff :* in
     //val x: DspComplex[V] = ops :* in
     val x: DspComplex[V] = ev.timesr(coeff, in)
-    out := ShiftRegister(x, config.pipelineDepth) 
+    //out := ShiftRegister(x, config.pipelineDepth) 
+    out.real := x.real
+    out.imag := x.imag
   }}
 }

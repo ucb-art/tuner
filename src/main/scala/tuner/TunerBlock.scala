@@ -42,11 +42,11 @@ class TunerBlockModule[T <: Data:Ring, V <: Data:Real](outer: DspBlock)(implicit
   val fixed_tuner_phase_re = Wire(Vec(config.lanes, genCoeff().asInstanceOf[DspComplex[V]].real))
   val re = fixed_tuner_phase_re.zipWithIndex.map{case (x, i) => x.fromBits(control(s"FixedTunerPhaseRe_$i"))}
   module.io.fixed_tuner_phase_re := re
-  val fixed_tuner_phase_im = Wire(Vec(config.lanes, genCoeff().asInstanceOf[DspComplex[V]].imaginary))
+  val fixed_tuner_phase_im = Wire(Vec(config.lanes, genCoeff().asInstanceOf[DspComplex[V]].imag))
   val im = fixed_tuner_phase_im.zipWithIndex.map{case (x, i) => x.fromBits(control(s"FixedTunerPhaseIm_$i"))}
   module.io.fixed_tuner_phase_im := im
 
   module.io.fixed_tuner_multiplier := control("FixedTunerMultiplier")
 
-  IPXactComponents._ipxactComponents += DspIPXact.makeDspBlockComponent
+  IPXactComponents._ipxactComponents += DspIPXact.makeDspBlockComponent(baseAddr)
 }
