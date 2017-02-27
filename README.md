@@ -56,7 +56,8 @@ Then run `make verilog CONFIG=CustomStandaloneTunerConfig` to generate the Veril
 ## Interfaces
 
 The Tuner uses the [https://github.com/ucb-art/rocket-dsp-utils/blob/master/doc/stream.md](DSP streaming interface) (a subset of AXI4-Stream) on both the data input and data output.
-There are nominally no status or control registers, so no SCR file exists.
+The SCRFile contains the mixer table coefficients or fixed tuner multiplier control registers, as well as data set end flag registers.
+It is accessible through an AXI4 interface.
 
 ## Signaling
 
