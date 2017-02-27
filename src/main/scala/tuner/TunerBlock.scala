@@ -15,11 +15,16 @@ class TunerBlock[T <: Data:Ring, V <: Data:Real]()(implicit p: Parameters, ev: s
 
   lazy val module = new TunerBlockModule[T, V](this)
   
-  //val config = p(TunerKey(p(DspBlockId)))
-  //(0 until config.numberOfTaps).map( i =>
-  //  addControl(s"firCoeff$i", 0.U)
-  //)
-  //addStatus("firStatus")
+  addStatus("Data_Set_End_Status")
+  addControl("Data_Set_End_Clear", 0.U)
+
+  val config = p(TunerKey(p(DspBlockId)))
+  (0 until config.lanes).foreach { i =>
+    addControl(s"FixedTunerPhaseRe_$i", 0.U)
+    addControl(s"FixedTunerPhaseIm_$i", 0.U)
+  }
+
+  addControl("FixedTunerMultiplier", 0.U)
 
 }
 
@@ -31,10 +36,17 @@ class TunerBlockModule[T <: Data:Ring, V <: Data:Real](outer: DspBlock)(implicit
   module.io.in <> unpackInput(lanesIn, genIn())
   unpackOutput(lanesOut, genOut()) <> module.io.out
 
-  //val taps = Wire(Vec(config.numberOfTaps, genTap.getOrElse(genIn())))
-  //val w = taps.zipWithIndex.map{case (x, i) => x.fromBits(control(s"firCoeff$i"))}
-  //module.io.taps := w
-  //status("firStatus") := module.io.out.sync
+  status("Data_Set_End_Status") := module.io.data_set_end_status
+  module.io.data_set_end_clear := control("Data_Set_End_Clear")
+
+  val fixed_tuner_phase_re = Wire(Vec(config.lanes, genCoeff().asInstanceOf[DspComplex[V]].real))
+  val re = fixed_tuner_phase_re.zipWithIndex.map{case (x, i) => x.fromBits(control(s"FixedTunerPhaseRe_$i"))}
+  module.io.fixed_tuner_phase_re := re
+  val fixed_tuner_phase_im = Wire(Vec(config.lanes, genCoeff().asInstanceOf[DspComplex[V]].imaginary))
+  val im = fixed_tuner_phase_im.zipWithIndex.map{case (x, i) => x.fromBits(control(s"FixedTunerPhaseIm_$i"))}
+  module.io.fixed_tuner_phase_im := im
+
+  module.io.fixed_tuner_multiplier := control("FixedTunerMultiplier")
 
   IPXactComponents._ipxactComponents += DspIPXact.makeDspBlockComponent
 }

@@ -46,6 +46,16 @@ class Tuner[T<:Data:Ring, V<:Data:Real]()(implicit val p: Parameters, ev: spire.
     in := Vec.fill(config.lanes)(Ring[T].zero)
   }
 
+  // data set end flag
+  val valid_delay = Reg(next=io.out.valid)
+  val dses = Reg(init=false.B)
+  when (io.data_set_end_clear) {
+    dses := false.B
+  } .elsewhen (valid_delay & ~io.out.valid) {
+    dses := true.B
+  }
+  io.data_set_end_status := dses
+
   // coefficients
   val coeffs = List.fill(config.lanes)(Wire(genCoeff()))
   if (config.phaseGenerator == "SimpleFixed") {
