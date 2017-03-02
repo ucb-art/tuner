@@ -19,34 +19,51 @@ class TunerBlock[T <: Data:Ring, V <: Data:Real]()(implicit p: Parameters, ev: s
   addControl("Data_Set_End_Clear", 0.U)
 
   val config = p(TunerKey(p(DspBlockId)))
-  (0 until config.lanes).foreach { i =>
-    addControl(s"FixedTunerPhaseRe_$i", 0.U)
-    addControl(s"FixedTunerPhaseIm_$i", 0.U)
+  if (config.phaseGenerator == "SimpleFixed") {
+    (0 until config.lanes).foreach { i =>
+      addControl(s"FixedTunerPhaseRe_$i", 0.U)
+      addControl(s"FixedTunerPhaseIm_$i", 0.U)
+    }
+  } else if (config.phaseGenerator == "Fixed") {
+    addControl("FixedTunerMultiplier", 0.U)
   }
 
-  addControl("FixedTunerMultiplier", 0.U)
+  addControl("Wrapback", 0.U)
 
 }
 
 class TunerBlockModule[T <: Data:Ring, V <: Data:Real](outer: DspBlock)(implicit p: Parameters, ev: spire.algebra.Module[DspComplex[V],T])
   extends GenDspBlockModule[T, DspComplex[V]](outer)(p) with HasTunerGenParameters[T, DspComplex[V]] {
-  val module = Module(new Tuner[T, V])
+
   val config = p(TunerKey(p(DspBlockId)))
-  
-  module.io.in <> unpackInput(lanesIn, genIn())
-  unpackOutput(lanesOut, genOut()) <> module.io.out
 
-  status("Data_Set_End_Status") := module.io.data_set_end_status
-  module.io.data_set_end_clear := control("Data_Set_End_Clear")
+  if (config.phaseGenerator == "SimpleFixed") {
+    val module = Module(new TunerSimpleFixed[T, V])
+    
+    module.io.in <> unpackInput(lanesIn, genIn())
+    unpackOutput(lanesOut, genOut()) <> module.io.out
 
-  val fixed_tuner_phase_re = Wire(Vec(config.lanes, genCoeff().asInstanceOf[DspComplex[V]].real))
-  val re = fixed_tuner_phase_re.zipWithIndex.map{case (x, i) => x.fromBits(control(s"FixedTunerPhaseRe_$i"))}
-  module.io.fixed_tuner_phase_re := re
-  val fixed_tuner_phase_im = Wire(Vec(config.lanes, genCoeff().asInstanceOf[DspComplex[V]].imag))
-  val im = fixed_tuner_phase_im.zipWithIndex.map{case (x, i) => x.fromBits(control(s"FixedTunerPhaseIm_$i"))}
-  module.io.fixed_tuner_phase_im := im
+    status("Data_Set_End_Status") := module.io.data_set_end_status
+    module.io.data_set_end_clear := control("Data_Set_End_Clear")
 
-  module.io.fixed_tuner_multiplier := control("FixedTunerMultiplier")
+    val fixed_tuner_phase_re = Wire(Vec(config.lanes, genCoeff().asInstanceOf[DspComplex[V]].real))
+    val re = fixed_tuner_phase_re.zipWithIndex.map{case (x, i) => x.fromBits(control(s"FixedTunerPhaseRe_$i"))}
+    module.io.fixed_tuner_phase_re := re
+    val fixed_tuner_phase_im = Wire(Vec(config.lanes, genCoeff().asInstanceOf[DspComplex[V]].imag))
+    val im = fixed_tuner_phase_im.zipWithIndex.map{case (x, i) => x.fromBits(control(s"FixedTunerPhaseIm_$i"))}
+    module.io.fixed_tuner_phase_im := im
+
+  } else if (config.phaseGenerator == "Fixed") {
+    val module = Module(new TunerFixed[T, V])
+    
+    module.io.in <> unpackInput(lanesIn, genIn())
+    unpackOutput(lanesOut, genOut()) <> module.io.out
+
+    status("Data_Set_End_Status") := module.io.data_set_end_status
+    module.io.data_set_end_clear := control("Data_Set_End_Clear")
+
+    module.io.fixed_tuner_multiplier := control("FixedTunerMultiplier")
+  }
 
   IPXactComponents._ipxactComponents += DspIPXact.makeDspBlockComponent(baseAddr)
 }
