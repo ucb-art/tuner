@@ -27,9 +27,6 @@ class TunerBlock[T <: Data:Ring, V <: Data:Real]()(implicit p: Parameters, ev: s
   } else if (config.phaseGenerator == "Fixed") {
     addControl("FixedTunerMultiplier", 0.U)
   }
-
-  addControl("Wrapback", 0.U)
-
 }
 
 class TunerBlockModule[T <: Data:Ring, V <: Data:Real](outer: DspBlock)(implicit p: Parameters, ev: spire.algebra.Module[DspComplex[V],T])
@@ -65,5 +62,5 @@ class TunerBlockModule[T <: Data:Ring, V <: Data:Real](outer: DspBlock)(implicit
     module.io.fixed_tuner_multiplier := control("FixedTunerMultiplier")
   }
 
-  IPXactComponents._ipxactComponents += DspIPXact.makeDspBlockComponent(baseAddr)
+  IPXactComponents._ipxactComponents += DspIPXact.makeDspBlockComponent(baseAddr, uuid)
 }

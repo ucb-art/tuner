@@ -22,6 +22,9 @@ class TunerSimpleFixedIO[T<:Data:Ring, V<:Data:Real]()(implicit val p: Parameter
 
   val fixed_tuner_phase_re = Input(Vec(config.lanes, genCoeff().asInstanceOf[DspComplex[V]].real))
   val fixed_tuner_phase_im = Input(Vec(config.lanes, genCoeff().asInstanceOf[DspComplex[V]].imag))
+
+  val wid = if (config.phaseGenerator == "Fixed") 0 else config.kBits
+  val fixed_tuner_multiplier = Input(UInt(wid.W))
 }
 
 class TunerFixedIO[T<:Data:Ring, V<:Data:Real]()(implicit val p: Parameters) extends Bundle with HasTunerGenParameters[T, DspComplex[V]] {
