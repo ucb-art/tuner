@@ -110,7 +110,7 @@ class TunerFixed[T<:Data:Ring, V<:Data:Real]()(implicit val p: Parameters, ev: s
   // coefficients
   val coeffs = List.fill(config.lanes)(Wire(genCoeff()))
   // create table of coefficients, which are cos(2*pi*k/N)+i*sin(2*pi*k/N)
-  val phases = (0 until config.mixerTableSize).map(x => Array(cos(2*Pi/config.mixerTableSize*x),sin(2*Pi/config.mixerTableSize*x)))
+  val phases = (0 until config.mixerTableSize).map(x => Array(cos(2*Pi/config.mixerTableSize*x*config.shrink),sin(2*Pi/config.mixerTableSize*x*config.shrink)))
   val genCoeffReal = genCoeff().asInstanceOf[DspComplex[V]].real
   val genCoeffImag = genCoeff().asInstanceOf[DspComplex[V]].imag
   val tables = List.fill(config.lanes)(Vec(phases.map(x => {
@@ -124,7 +124,10 @@ class TunerFixed[T<:Data:Ring, V<:Data:Real]()(implicit val p: Parameters, ev: s
     coeff
   })))
   tables.zipWithIndex.zip(coeffs).foreach{ case ((table, laneID), coeff) => {
-    coeff := table(io.fixed_tuner_multiplier*laneID.U)
+    // [stevo]: wraps around if the multiply result is beyond the size the mixer table
+    val mul_output = Wire(UInt(config.kBits.W))
+    mul_output := io.fixed_tuner_multiplier*laneID.U
+    coeff := table(mul_output)
   }}
 
   // multiply, add pipeline registers at output

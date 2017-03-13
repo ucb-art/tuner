@@ -252,7 +252,8 @@ case class TunerConfig(
   pipelineDepth: Int = 0, // pipeline registers are always added at the end
   lanes: Int = 8, // number of parallel input and output lanes
   phaseGenerator: String = "SimpleFixed", // Fixed = 1 coefficient per lane, SimpleFixed = mixerTableSize coefficients per lane
-  mixerTableSize: Int = 8 // how deep the tuner memory is, this times lanes gives total tuner depth
+  mixerTableSize: Int = 8, // how deep the tuner memory is, this times lanes gives total tuner depth
+  shrink: Double = 1.0 // multiplier to the mixer table constants
 ) {
   // sanity checks
   require(pipelineDepth >= 0, "Must have positive pipelining")
@@ -263,5 +264,6 @@ case class TunerConfig(
     require(mixerTableSize%lanes == 0, "Mixer table size must be integer multiple of lanes")
   }
 
-  val kBits = log2Up(mixerTableSize / lanes)
+  // only used in Fixed configuration
+  val kBits = log2Up(mixerTableSize)
 }
