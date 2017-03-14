@@ -2,7 +2,6 @@
 package tuner
 
 import diplomacy.{LazyModule, LazyModuleImp}
-import dsptools.Utilities._
 import dsptools.{DspContext, Grow}
 import spire.algebra.{Field, Ring}
 import breeze.math.{Complex}
@@ -11,6 +10,7 @@ import breeze.signal._
 import breeze.signal.support._
 import breeze.signal.support.CanFilter._
 import chisel3._
+import chisel3.experimental._
 import chisel3.util._
 import chisel3.iotesters._
 import dspjunctions._
@@ -36,48 +36,36 @@ import dsptools._
 
 object LocalTest extends Tag("edu.berkeley.tags.LocalTest")
 
-class TunerTester[T <: Data](c: TunerBlock[T])(implicit p: Parameters) extends DspBlockTester(c) {
-  def config = p(TunerKey)(p)
-  def gk = p(GenKey(p(DspBlockId)))
-  def test_length = 2
+class TunerTester[T <: Data:Ring, Q <: Data:Real](c: TunerBlockModule[T, Q])(implicit p: Parameters) extends DspBlockTester(c) {
+  val config = p(TunerKey(p(DspBlockId)))
+  val gk = p(GenKey(p(DspBlockId)))
+  val sync_period = 1
+  val test_length = 1
   
   // define input datasets here
-  //def input = Seq.fill(test_length)(Seq.fill(gk.lanesIn)(Random.nextDouble*2-1))
-  val mult = Array.fill(gk.lanesIn)(Random.nextDouble*2-1)
-
-  //def input = Seq.fill(test_length)(Seq.fill(gk.lanesIn)(2.718281828))
-  def input = Seq(Seq(2.2, 2.3), Seq(1.4, 5.9))
-  def streamIn = packInputStream(input, gk.genIn)
-  //def input = Seq(BigInt(7), BigInt(6), BigInt(5), BigInt(3))
-
-  // use Breeze FIR filter, but trim (it zero pads the input) and decimate output
-  //val expected_output = filter(DenseVector(input.toArray.flatten), DenseVector(filter_coeffs)).toArray.drop(config.numberOfTaps-2).dropRight(config.numberOfTaps-2).grouped(gk.lanesIn/gk.lanesOut).map(_.head).toArray
+  //val in = Seq.fill(test_length)(Seq.fill(sync_period)(Seq.fill(gk.lanesIn)(Random.nextDouble*2-1)))
+  val ins = Seq.fill(test_length)(Seq.fill(sync_period)(Seq.fill(gk.lanesIn)(1.0)))
+  def streamIn = ins.map(packInputStream(_, gk.genIn))
 
   // reset 5 cycles
   reset(5)
 
   pauseStream
-  mult.zipWithIndex.foreach { case(x, i) => axiWriteAs(addrmap(s"mult$i"), x, genMult.getOrElse(gk.genOut[T])) }
-  step(10)
+  if (config.phaseGenerator == "Fixed") {
+    axiWrite(addrmap("FixedTunerMultiplier"), 2)
+    step(2)
+    println(s"multiplier = ${axiRead(addrmap("FixedTunerMultiplier"))}")
+  } else {
+    //mult.zipWithIndex.foreach { case(x, i) => axiWriteAs(addrmap(s"mult$i"), x, genMult.getOrElse(gk.genOut[T])) }
+  }
   playStream
-  step(test_length)
-  //val output = unpackOutputStream(gk.genOut[T], gk.lanesOut)
+  step(test_length*sync_period)
+  val output = unpackOutputStream(gk.genOut, gk.lanesOut)
 
   println("Input:")
-  //println(input.toArray.flatten.deep.mkString("\n"))
-  println(input.toArray.deep.mkString("\n"))
-  println("Tuner Coefficients")
-  println(mult.deep.mkString("\n"))
+  println(ins.toArray.flatten.deep.mkString("\n"))
   println("Chisel Output")
-  //println(output.toArray.deep.mkString("\n"))
-  //println("Reference Output")
-  //println(expected_output.deep.mkString(","))
-
-  // as an example, though still need to convert from BigInt in bits to double
-  //val tap0 = axiRead(0)
-
-  // check within 5%
-  //compareOutput(output, expected_output, 5e-2)
+  println(output.toArray.deep.mkString("\n"))
 }
 
 class TunerSpec extends FlatSpec with Matchers {
@@ -87,18 +75,25 @@ class TunerSpec extends FlatSpec with Matchers {
     interpreterOptions = InterpreterOptions(setVerbose = false, writeVCD = true)
   }
 
+  import ComplexModuleImpl._
+
   it should "work with DspBlockTester" in {
     implicit val p: Parameters = Parameters.root(TunerConfigBuilder.standalone(
-    "tunerjames",
-    TunerConfig(10), 
-    {() => DspReal()})
-    .toInstance)
+      id = "tuner",
+      tunerConfig = TunerConfig(
+        pipelineDepth = 0,
+        lanes = 8,
+        phaseGenerator = "Fixed",
+        mixerTableSize = 8), 
+      genIn = () => FixedPoint(12.W, 6.BP),
+      genOut = () => DspComplex(FixedPoint(12.W, 6.BP), FixedPoint(12.W, 6.BP)))
+      .toInstance)
     //implicit object FixedTypeclass extends dsptools.numbers.FixedPointReal { 
     //  override def fromDouble(x: Double): FixedPoint = {
     //    FixedPoint.fromDouble(x, binaryPoint = p(FractionalBits))
     //  }
     //} 
-    val dut = () => LazyModule(new LazyTunerBlock[DspReal]).module
-    dsptools.Driver.execute(dut, manager) { c => new TunerTester(c) } should be (true)
+    val dut = () => LazyModule(new TunerBlock[FixedPoint, FixedPoint]).module
+    chisel3.iotesters.Driver.execute(dut, manager) { c => new TunerTester(c) } should be (true)
   }
 }
