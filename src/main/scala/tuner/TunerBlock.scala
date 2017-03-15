@@ -50,6 +50,8 @@ class TunerBlockModule[T <: Data:Ring, V <: Data:Real](outer: DspBlock)(implicit
     val im = fixed_tuner_phase_im.zipWithIndex.map{case (x, i) => x.fromBits(control(s"FixedTunerPhaseIm_$i"))}
     module.io.fixed_tuner_phase_im := im
 
+    IPXactComponents._ipxactComponents += DspIPXact.makeDspBlockComponent(baseAddr, uuid, module.name)
+
   } else if (config.phaseGenerator == "Fixed") {
     val module = Module(new TunerFixed[T, V])
     
@@ -60,7 +62,9 @@ class TunerBlockModule[T <: Data:Ring, V <: Data:Real](outer: DspBlock)(implicit
     module.io.data_set_end_clear := control("Data_Set_End_Clear")
 
     module.io.fixed_tuner_multiplier := control("FixedTunerMultiplier")
+    
+    IPXactComponents._ipxactComponents += DspIPXact.makeDspBlockComponent(baseAddr, uuid, module.name)
+
   }
 
-  IPXactComponents._ipxactComponents += DspIPXact.makeDspBlockComponent(baseAddr, uuid)
 }
