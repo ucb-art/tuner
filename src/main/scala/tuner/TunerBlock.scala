@@ -63,7 +63,7 @@ class TunerBlockModule[T <: Data:Ring, V <: Data:Real](outer: DspBlock)(implicit
 
     module.io.fixed_tuner_multiplier := control("FixedTunerMultiplier")
     
-    IPXactComponents._ipxactComponents += DspIPXact.makeDspBlockComponent(baseAddr, uuid, module.name)
+    IPXactComponents._ipxactComponents += DspIPXact.makeDspBlockComponent(baseAddr, uuid, this.name)
 
   }
 
