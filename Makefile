@@ -5,6 +5,8 @@ ivy_dir = $(base_dir)/.ivy2
 ROCKETCHIP_DIR=$(framework_dir)/rocket-chip
 TESTCHIPIP_DIR=$(framework_dir)/testchipip
 
+default: verilog
+
 SBT ?= java -XX:+CMSClassUnloadingEnabled -XX:MaxPermSize=256m -Xmx2G -Xss128M -jar $(ROCKETCHIP_DIR)/sbt-launch.jar -Dsbt.ivy.home="${ivy_dir}"
 
 include $(framework_dir)/Makefrag

@@ -79,14 +79,16 @@ class TunerSpec extends FlatSpec with Matchers {
 
   it should "work with DspBlockTester" in {
     implicit val p: Parameters = Parameters.root(TunerConfigBuilder.standalone(
-      id = "tuner",
-      tunerConfig = TunerConfig(
-        pipelineDepth = 0,
-        lanes = 8,
-        phaseGenerator = "Fixed",
-        mixerTableSize = 8), 
-      genIn = () => FixedPoint(12.W, 6.BP),
-      genOut = () => DspComplex(FixedPoint(12.W, 6.BP), FixedPoint(12.W, 6.BP)))
+      "tuner", 
+      TunerConfig(
+        pipelineDepth = 4,
+        lanes = 32,
+        phaseGenerator = "Fixed", // "Fixed" or "SimpleFixed"
+        mixerTableSize = 32,
+        shrink = 1.0),
+      genIn = () => FixedPoint(8.W, 7.BP),
+      genOut = () => DspComplex(FixedPoint(8.W, 7.BP), FixedPoint(8.W, 7.BP)),
+      genCoeff = Some(() => DspComplex(FixedPoint(9.W, 7.BP), FixedPoint(9.W, 7.BP))))
       .toInstance)
     //implicit object FixedTypeclass extends dsptools.numbers.FixedPointReal { 
     //  override def fromDouble(x: Double): FixedPoint = {

@@ -25,7 +25,7 @@ object TunerConfigBuilder {
           val inputTotalBits = {
             genIn() match {
               case fp: FixedPoint => fp.getWidth
-              case c: DspComplex[T] => c.real.getWidth // assume real and imag have equal total widths
+              case c: DspComplex[_] => c.real.getWidth // assume real and imag have equal total widths
               case d: DspReal => d.getWidth
               case s: SInt => s.getWidth
               case _ =>
@@ -54,7 +54,7 @@ object TunerConfigBuilder {
           val inputTotalBits = {
             genIn() match {
               case fp: FixedPoint => fp.getWidth
-              case c: DspComplex[T] => c.real.getWidth // assume real and imag have equal total widths
+              case c: DspComplex[_] => c.real.getWidth // assume real and imag have equal total widths
               case d: DspReal => d.getWidth
               case s: SInt => s.getWidth
               case _ =>
@@ -70,7 +70,7 @@ object TunerConfigBuilder {
                 ("InputFractionalBits", fractionalBits.get.toString),
                 ("InputTotalBits", fp.getWidth.toString)
               )
-            case c: DspComplex[T] =>
+            case c: DspComplex[_] =>
               inputComplex = "1"
               parameterMap ++= List(
                 ("InputTotalBits", c.real.getWidth.toString) // assume real and imag have equal total widths
@@ -96,7 +96,7 @@ object TunerConfigBuilder {
           }
           // must be complex
           genOut() match {
-            case c: DspComplex[V] =>
+            case c: DspComplex[_] =>
               c.underlyingType() match {
                 case "fixed" =>
                   val fractionalBits = c.real.asInstanceOf[FixedPoint].binaryPoint
@@ -120,7 +120,7 @@ object TunerConfigBuilder {
                 ("MixerTableFractionalBits", (inputTotalBits-2).toString)
               )
             case Some(c) => { c() match {
-              case d: DspComplex[V] => {
+              case d: DspComplex[_] => {
                 parameterMap ++= List(
                   ("MixerTableTotalBits", d.real.getWidth.toString)
                 )
@@ -227,12 +227,13 @@ class CustomStandaloneTunerConfig extends Config(TunerConfigBuilder.standalone(
   "tuner", 
   TunerConfig(
     pipelineDepth = 4,
-    lanes = 16,
+    lanes = 32,
     phaseGenerator = "Fixed", // "Fixed" or "SimpleFixed"
-    mixerTableSize = 32),
-  genIn = () => DspComplex(FixedPoint(18.W, 16.BP), FixedPoint(18.W, 16.BP)),
-  genOut = () => DspComplex(FixedPoint(20.W, 16.BP), FixedPoint(20.W, 16.BP)),
-  genCoeff = Some(() => DspComplex(FixedPoint(21.W, 19.BP), FixedPoint(21.W, 19.BP)))
+    mixerTableSize = 32,
+    shrink = 1.0),
+  genIn = () => FixedPoint(8.W, 7.BP),
+  genOut = () => DspComplex(FixedPoint(8.W, 7.BP), FixedPoint(8.W, 7.BP)),
+  genCoeff = Some(() => DspComplex(FixedPoint(9.W, 7.BP), FixedPoint(9.W, 7.BP)))
 ))
 
 case class TunerKey(id: String) extends Field[TunerConfig]
