@@ -113,7 +113,7 @@ class TunerFixed[T<:Data:Ring, V<:Data:Real]()(implicit val p: Parameters, ev: s
   val phases = (0 until config.mixerTableSize).map(x => Array(cos(2*Pi/config.mixerTableSize*x*config.shrink),sin(2*Pi/config.mixerTableSize*x*config.shrink)))
   val genCoeffReal = genCoeff().asInstanceOf[DspComplex[V]].real
   val genCoeffImag = genCoeff().asInstanceOf[DspComplex[V]].imag
-  val tables = List.fill(config.lanes)(Vec(phases.map(x => {
+  val table = Vec(phases.map(x => {
     val real = Wire(genCoeffReal.cloneType)
     val imag = Wire(genCoeffImag.cloneType)
     real := genCoeffReal.fromDouble(x(0))
@@ -122,8 +122,8 @@ class TunerFixed[T<:Data:Ring, V<:Data:Real]()(implicit val p: Parameters, ev: s
     coeff.real := real
     coeff.imag := imag
     coeff
-  })))
-  tables.zipWithIndex.zip(coeffs).foreach{ case ((table, laneID), coeff) => {
+  }))
+  coeffs.zipWithIndex.foreach{ case (coeff, laneID) => {
     // [stevo]: wraps around if the multiply result is beyond the size the mixer table
     val mul_output = Wire(UInt(config.kBits.W))
     mul_output := io.fixed_tuner_multiplier*laneID.U
