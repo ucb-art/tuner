@@ -19,11 +19,11 @@ Clone the repository and update the depenedencies:
 git clone git@github.com:ucb-art/tuner.git
 git submodule update --init
 cd dsp-framework
-./update.bash
+./update.bash no_hwacha
 cd ..
 ```
 
-See the [https://github.com/ucb-art/dsp-framework/blob/master/README.md](dsp-framework README) for more details on this infrastructure.
+See the [dsp-framework README](https://github.com/ucb-art/dsp-framework/blob/master/README.md) for more details on this infrastructure.
 Build the dependencies by typing `make libs`.
 
 ## Building
@@ -55,7 +55,7 @@ Then run `make verilog CONFIG=CustomStandaloneTunerConfig` to generate the Veril
 
 ## Interfaces
 
-The Tuner uses the [https://github.com/ucb-art/rocket-dsp-utils/blob/master/doc/stream.md](DSP streaming interface) (a subset of AXI4-Stream) on both the data input and data output.
+The Tuner uses the [DSP streaming interface](https://github.com/ucb-art/rocket-dsp-utils/blob/master/doc/stream.md) (a subset of AXI4-Stream) on both the data input and data output.
 The SCRFile contains the mixer table coefficients or fixed tuner multiplier control registers, as well as data set end flag registers.
 It is accessible through an AXI4 interface.
 
